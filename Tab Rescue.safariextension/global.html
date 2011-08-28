@@ -1,0 +1,88 @@
+<script>
+function cancelWindow() {
+	timeout = null;
+	
+	for(var i = 0; i < potentialWindow.length; i++)
+	{
+		closedURLs.push(potentialWindow[i]);
+	}
+	potentialWindow = [];
+}
+
+function closeHandler (event) {
+	
+	if (timeout) {
+		console.log("cleared timer...expecting window")
+		clearTimeout(timeout);
+	}
+	timeout = setTimeout("cancelWindow()", 1000);
+	
+	console.log(event);
+	
+	if (event.target.reader) {
+		if(typeof(event.target.url) == "string" && event.target.url != "") {
+			potentialWindow.push(event.target.url);
+			console.log("closed tab url: " + event.target.url);
+		} else {
+			potentialWindow.push("about:blank");
+			console.log("closed tab...bad url");
+		}
+	} else {
+		clearTimeout(timeout);
+		var URLstring = "";
+		var URLs = [];
+		
+		for (var i = 0; i < potentialWindow.length; i++) {
+			if (i != 0) {URLstring += ", ";}
+			URLstring += potentialWindow[i];
+			
+			if(potentialWindow[i] != undefined) {
+				URLs.push(potentialWindow[i]);
+			} else {
+				URLs.push("about:blank")
+			}
+		}
+		
+		potentialWindow = [];
+		closedURLs.push(URLs);
+		console.log("closed window urls: " + URLstring);
+	}
+}
+
+function reopen() {
+	
+	if(potentialWindow != []) {
+		clearTimeout(timeout);
+		cancelWindow();
+	}
+
+	var URLblob = closedURLs.pop();
+	
+	if(typeof(URLblob) == "string") {
+		var newTab = safari.application.activeBrowserWindow.openTab();  
+		newTab.url = URLblob;		
+	}
+	else if(typeof(URLblob) == "object" && (URLblob instanceof Array))
+	{
+		var newWindow = safari.application.openBrowserWindow();
+		
+		if(URLblob != []) {
+			newWindow.activeTab.url = URLblob[0];
+			for(var i = 1; i < URLblob.length; i++) {
+				var newTab = newWindow.openTab();
+				newTab.url = URLblob[i];
+			}
+		}
+	}	
+}
+
+timeout = null;
+potentialWindow = [];
+closedURLs = [];
+
+
+safari.application.addEventListener("close", closeHandler, true);
+safari.application.addEventListener("command", reopen, true);
+safari.application.addEventListener("message", reopen, true);
+
+</script>
