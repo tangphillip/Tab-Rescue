@@ -1,10 +1,15 @@
 <script>
+
+BUFFER_SIZE = 40;
+
 function cancelWindow() {
 	timeout = null;
 	
-	for(var i = 0; i < potentialWindow.length; i++)
-	{
+	for (var i = 0; i < potentialWindow.length; i++) {
 		closedURLs.push(potentialWindow[i]);
+	}
+	while (closedURLs.length > BUFFER_SIZE) {
+		closedURLs.shift();
 	}
 	potentialWindow = [];
 }
@@ -17,15 +22,13 @@ function closeHandler (event) {
 	}
 	timeout = setTimeout("cancelWindow()", 1000);
 	
-	console.log(event);
-	
 	if (event.target.reader) {
-		if(typeof(event.target.url) == "string" && event.target.url != "") {
+		if (typeof(event.target.url) == "string" && event.target.url != "") {
 			potentialWindow.push(event.target.url);
-			console.log("closed tab url: " + event.target.url);
+			// console.log("closed tab url: " + event.target.url);
 		} else {
 			potentialWindow.push("about:blank");
-			console.log("closed tab...bad url");
+			// console.log("closed tab...bad url");
 		}
 	} else {
 		clearTimeout(timeout);
@@ -36,7 +39,7 @@ function closeHandler (event) {
 			if (i != 0) {URLstring += ", ";}
 			URLstring += potentialWindow[i];
 			
-			if(potentialWindow[i] != undefined) {
+			if (potentialWindow[i] != undefined) {
 				URLs.push(potentialWindow[i]);
 			} else {
 				URLs.push("about:blank")
@@ -45,12 +48,15 @@ function closeHandler (event) {
 		
 		potentialWindow = [];
 		closedURLs.push(URLs);
-		console.log("closed window urls: " + URLstring);
+		// console.log("closed window urls: " + URLstring);
+	}
+	
+	while (closedURLs.length > BUFFER_SIZE) {
+		closedURLs.shift();
 	}
 }
 
 function reopen() {
-	
 	if(potentialWindow != []) {
 		clearTimeout(timeout);
 		cancelWindow();
@@ -58,11 +64,11 @@ function reopen() {
 
 	var URLblob = closedURLs.pop();
 	
-	if(typeof(URLblob) == "string") {
+	if (typeof(URLblob) == "string") {
 		var newTab = safari.application.activeBrowserWindow.openTab();  
 		newTab.url = URLblob;		
 	}
-	else if(typeof(URLblob) == "object" && (URLblob instanceof Array))
+	else if (typeof(URLblob) == "object" && (URLblob instanceof Array))
 	{
 		var newWindow = safari.application.openBrowserWindow();
 		
@@ -76,13 +82,19 @@ function reopen() {
 	}	
 }
 
+function fireOnKeypress(e) {
+	if (e.shiftKey && (e.ctrlKey || e.metaKey) && e.keyCode == 84){
+		safari.self.tab.dispatchMessage("reopen");
+		e.preventDefault();
+	}
+}
+
 timeout = null;
 potentialWindow = [];
 closedURLs = [];
 
-
 safari.application.addEventListener("close", closeHandler, true);
 safari.application.addEventListener("command", reopen, true);
 safari.application.addEventListener("message", reopen, true);
-
 </script>
+
